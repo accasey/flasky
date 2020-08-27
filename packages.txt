@@ -1,6 +1,7 @@
 flask
 flask-bootstrap
 flask-moment
+flask-sqlalchemy
 flask-wtf
 
 -- dev only
