@@ -3,6 +3,7 @@ from typing import Any
 
 from flask import current_app
 from flask_login import UserMixin
+from flask_login.mixins import AnonymousUserMixin
 from itsdangerous import (
     BadSignature,
     SignatureExpired,
@@ -14,15 +15,81 @@ from . import db
 from . import login_manager
 
 
+class Permission:
+    FOLLOW = 1
+    COMMENT = 2
+    WRITE = 4
+    MODERATE = 8
+    ADMIN = 16
+
+
 class Role(db.Model):
     __tablename__ = "roles"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), unique=True)
+    default = db.Column(db.Boolean, default=False, index=True)
+    permissions = db.Column(db.Integer)
 
     users = db.relationship("User", backref="role", lazy="dynamic")
 
+    def add_permission(self, perm: int):
+        if not self.has_permissions(perm):
+            self.permissions += perm
+
+    def remove_permission(self, perm: int):
+        if self.has_permissions(perm):
+            self.permissions -= perm
+
+    def reset_permissions(self):
+        self.permissions = 0
+
+    def has_permissions(self, perm: int):
+        return self.permissions & perm == perm
+
+    @staticmethod
+    def insert_roles():
+        roles = {
+            "User": [Permission.FOLLOW, Permission.COMMENT, Permission.WRITE],
+            "Moderator": [
+                Permission.FOLLOW,
+                Permission.COMMENT,
+                Permission.WRITE,
+                Permission.MODERATE,
+            ],
+            "Administrator": [
+                Permission.FOLLOW,
+                Permission.COMMENT,
+                Permission.WRITE,
+                Permission.MODERATE,
+                Permission.ADMIN,
+            ],
+        }
+        default_role = "User"
+
+        for r in roles:
+            role = Role.query.filter_by(name=r).first()
+
+            if role is None:
+                role = Role(name=r)
+
+            role.reset_permissions()
+
+            for perm in roles[r]:
+                role.add_permission(perm)
+
+            role.default = role.name == default_role
+
+            db.session.add(role)
+
+        db.session.commit()
+
+    def __init__(self, **kwargs):
+        super(Role, self).__init__(**kwargs)
+        if self.permissions is None:
+            self.permissions = 0
+
     def __repr__(self):
-        return f"<Role {self.name}>"
+        return f"<Role {self.name} | id: {self.id} >"
 
 
 class User(UserMixin, db.Model):
@@ -45,6 +112,7 @@ class User(UserMixin, db.Model):
     def verify_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
 
+    # CONFIRMATION METHODS
     def generate_confirmation_token(self, expiration: int = 3600) -> str:
         s: Serializer = Serializer(current_app.config["SECRET_KEY"], expiration)
         return s.dumps({"confirm": self.id}).decode("utf-8")
@@ -64,6 +132,7 @@ class User(UserMixin, db.Model):
 
         return True
 
+    # RESET PASSWORD METHODS
     def generate_reset_token(self, expiration: int = 3600) -> str:
         s: Serializer = Serializer(current_app.config["SECRET_KEY"], expiration)
         return s.dumps({"reset": self.id}).decode("utf-8")
@@ -87,6 +156,7 @@ class User(UserMixin, db.Model):
 
         return True
 
+    # EMAIL METHODS
     def generate_email_change_token(
         self, new_email: str, expiration: int = 3600
     ) -> str:
@@ -99,7 +169,7 @@ class User(UserMixin, db.Model):
         s: Serializer = Serializer(current_app.config["SECRET_KEY"])
 
         try:
-            data: any = s.loads(token.encode("utf-8"))
+            data: Any = s.loads(token.encode("utf-8"))
         except (BadSignature, SignatureExpired):
             return False
 
@@ -118,8 +188,35 @@ class User(UserMixin, db.Model):
 
         return True
 
-    def __repr__(self):
-        return f"<User {self.username}>"
+    # PERMISSIONS METHODS
+    def can(self, perm: int) -> bool:
+        return self.role is not None and self.role.has_permissions(perm)
+
+    def is_administrator(self) -> bool:
+        return self.can(Permission.ADMIN)
+
+    def __repr__(self) -> str:
+        return f"<User {self.username} | role_id: {self.role_id} | role: {self.role}>"
+
+    def __init__(self, **kwargs) -> None:
+        super(User, self).__init__(**kwargs)
+        if self.role is None:
+            if self.email == current_app.config["FLASKY_ADMIN"]:
+                self.role = Role.query.filter_by(name="Administrator").first()
+
+            if self.role is None:
+                self.role = Role.query.filter_by(default=True).first()
+
+
+class AnonymousUser(AnonymousUserMixin):
+    def can(self, perm: int) -> bool:
+        return False
+
+    def is_administrator(self) -> bool:
+        return False
+
+
+login_manager.anonymous_user = AnonymousUser
 
 
 @login_manager.user_loader

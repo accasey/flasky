@@ -1,9 +1,10 @@
 """The auth blueprint's routes."""
 from typing import Any
 
-from flask import flash, redirect, render_template, request, Response, url_for
+from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_wtf.form import FlaskForm
+from werkzeug.wrappers import Response
 
 from . import auth
 from .forms import (
@@ -47,6 +48,7 @@ def login() -> Any:
         if user is not None and user.verify_password(form.password.data):
             login_user(user, form.remember_me.data)
             next: Any = request.args.get("next")
+            # e.g. /auth/logout if acessing the logout route
 
             if next is None or not next.startswith("/"):
                 next = url_for("main.index")
