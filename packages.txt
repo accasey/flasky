@@ -1,5 +1,7 @@
+email_validator
 flask
 flask-bootstrap
+flask-login
 flask-mail
 flask-migrate
 flask-moment

@@ -1,5 +1,4 @@
-"""Main blueprint creation."""
-
+"""The main blueprint creation."""
 from flask import Blueprint
 
 main = Blueprint("main", __name__)
