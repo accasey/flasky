@@ -22,13 +22,15 @@ from ..models import User
 
 @auth.before_app_request
 def before_request() -> Response:
-    if (
-        current_user.is_authenticated
-        and not current_user.confirmed
-        and request.blueprint != "auth"
-        and request.endpoint != "static"
-    ):
-        return redirect(url_for("auth.unconfirmed"))
+    if current_user.is_authenticated:
+        current_user.ping()
+        if (
+            not current_user.confirmed
+            and request.endpoint
+            and request.blueprint != "auth"
+            and request.endpoint != "static"
+        ):
+            return redirect(url_for("auth.unconfirmed"))
 
 
 @auth.route("/unconfirmed")
@@ -227,7 +229,7 @@ def change_email_request():
 
 @auth.route("/change_email/<token>")
 @login_required
-def change_email(token):
+def change_email(token) -> Response:
     if current_user.change_email(token):
         db.session.commit()
         flash("Your email address has been updated.")

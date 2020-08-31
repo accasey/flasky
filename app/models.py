@@ -1,7 +1,9 @@
 """The data models for the application."""
+from datetime import datetime
+import hashlib
 from typing import Any
 
-from flask import current_app
+from flask import current_app, request
 from flask_login import UserMixin
 from flask_login.mixins import AnonymousUserMixin
 from itsdangerous import (
@@ -100,6 +102,17 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(128))
     role_id = db.Column(db.Integer, db.ForeignKey("roles.id"))
     confirmed = db.Column(db.Boolean, default=False)
+    name = db.Column(db.String(64))
+    location = db.Column(db.String(64))
+    about_me = db.Column(db.Text())
+    member_since = db.Column(db.DateTime(), default=datetime.utcnow)
+    last_seen = db.Column(db.DateTime(), default=datetime.utcnow)
+    avatar_hash = db.Column(db.String(32))
+
+    def ping(self):
+        self.last_seen = datetime.utcnow()
+        db.session.add(self)
+        db.session.commit()
 
     @property
     def password(self):
@@ -184,6 +197,7 @@ class User(UserMixin, db.Model):
             return False
 
         self.email = new_email
+        self.avatar_hash = self.gravatar_hash()
         db.session.add(self)
 
         return True
@@ -206,6 +220,22 @@ class User(UserMixin, db.Model):
 
             if self.role is None:
                 self.role = Role.query.filter_by(default=True).first()
+
+        if self.email is not None and self.avatar_hash is None:
+            self.avatar_hash = self.gravatar_hash()
+
+    def gravatar_hash(self) -> str:
+        return hashlib.md5(self.email.lower().encode("utf-8")).hexdigest()  # noqa
+
+    def gravatar(self, size=100, default="identicon", rating="g"):
+        if request.is_secure:
+            url = "https://secure.gravatar.com/avatar"
+        else:
+            url = "http://www.gravatar.com/avatar"
+
+        hash = self.avatar_hash or self.gravatar_hash()
+
+        return f"{url}/{hash}?s={size}&d={default}&r={rating}"
 
 
 class AnonymousUser(AnonymousUserMixin):
