@@ -1,15 +1,19 @@
+bleach
 email_validator
 flask
 flask-bootstrap
 flask-login
+flask-pagedown
 flask-mail
 flask-migrate
 flask-moment
 flask-sqlalchemy
 flask-wtf
+markdown
 
 -- dev only
 black
+faker
 flake8
 flake8-bandit
 flake8-bugbear

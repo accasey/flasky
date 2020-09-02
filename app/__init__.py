@@ -5,6 +5,7 @@ from flask_bootstrap import Bootstrap
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_moment import Moment
+from flask_pagedown import PageDown
 from flask_sqlalchemy import SQLAlchemy
 
 
@@ -14,6 +15,7 @@ moment = Moment()
 db = SQLAlchemy()
 login_manager = LoginManager()
 login_manager.login_view = "auth.login"
+pagedown = PageDown()
 
 
 def create_app(config_name: str) -> Flask:
@@ -34,6 +36,7 @@ def create_app(config_name: str) -> Flask:
     moment.init_app(app)
     db.init_app(app)
     login_manager.init_app(app)
+    pagedown.init_app(app)
 
     # attach routes an custom error pages here
 

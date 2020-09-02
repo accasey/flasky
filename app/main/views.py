@@ -1,7 +1,7 @@
 """The Blueprint's custom routes."""
 from typing import Any
 
-from flask import flash, redirect, render_template, url_for
+from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from . import main
@@ -52,18 +52,28 @@ def index() -> Any:
 
         return redirect(url_for(".index"))
 
-    posts = Post.query.order_by(Post.timestamp.desc()).all()
+    # posts = Post.query.order_by(Post.timestamp.desc()).all()
+    page: int = request.args.get("page", 1, type=int)
+    pagination = Post.query.order_by(Post.timestamp.desc()).paginate(
+        page, per_page=current_app.config["FLASKY_POSTS_PER_PAGE"], error_out=False
+    )
+    posts = pagination.items
 
-    return render_template("index.html", form=form, posts=posts)
+    return render_template("index.html", form=form, posts=posts, pagination=pagination)
 
 
 @main.route("/user/<username>")
 def user(username: str) -> Any:
     user: Any = User.query.filter_by(username=username).first_or_404()
 
-    posts = user.posts.order_by(Post.timestamp.desc()).all()
+    # posts = user.posts.order_by(Post.timestamp.desc()).all()
+    page: int = request.args.get("page", 1, type=int)
+    pagination = user.posts.order_by(Post.timestamp.desc()).paginate(
+        page, per_page=current_app.config["FLASKY_POSTS_PER_PAGE"], error_out=False
+    )
+    posts = pagination.items
 
-    return render_template("user.html", user=user, posts=posts)
+    return render_template("user.html", user=user, posts=posts, pagination=pagination)
 
 
 @main.route("/edit-profile", methods=["GET", "POST"])
