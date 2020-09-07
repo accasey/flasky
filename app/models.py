@@ -141,6 +141,12 @@ class User(UserMixin, db.Model):
         db.session.commit()
 
     @property
+    def followed_posts(self):
+        return Post.query.join(Follow, Follow.followed_id == Post.author_id).filter(
+            Follow.follower_id == self.id
+        )
+
+    @property
     def password(self):
         raise AttributeError("password is not a readable attribue")
 
@@ -267,7 +273,6 @@ class User(UserMixin, db.Model):
         if not self.is_following(user):
             f = Follow(follower=self, followed=user)
             db.session.add(f)
-            
 
     def unfollow(self, user):
         f = self.followed.filter_by(followed_id=user.id).first()

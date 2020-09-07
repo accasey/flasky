@@ -217,7 +217,7 @@ def followers(username: str) -> Any:
 
     page = request.args.get("page", 1, type=int)
     pagination = user.followers.paginate(
-        page, per_page=current_app.config["FLASKY_FOLLOWERS_PER_PAGE"], error_out=False
+        page, per_page=current_app.config["FLASKY_FOLLOWERS_PER_PAGE"], error_out=False  # noqa
     )
     follows = [
         {"user": item.follower, "timestamp": item.timestamp}
@@ -231,4 +231,3 @@ def followers(username: str) -> Any:
         pagination=pagination,
         follows=follows,
     )
-
