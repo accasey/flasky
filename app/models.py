@@ -241,6 +241,14 @@ class User(UserMixin, db.Model):
     def is_administrator(self) -> bool:
         return self.can(Permission.ADMIN)
 
+    @staticmethod
+    def add_self_follows():
+        for user in User.query.all():
+            if not user.is_following(user):
+                user.follow(user)
+                db.session.add(user)
+                db.session.commit()
+
     def __repr__(self) -> str:
         return f"<User {self.username} | role_id: {self.role_id} | role: {self.role}>"
 
@@ -255,6 +263,8 @@ class User(UserMixin, db.Model):
 
         if self.email is not None and self.avatar_hash is None:
             self.avatar_hash = self.gravatar_hash()
+
+        self.follow(self)
 
     def gravatar_hash(self) -> str:
         return hashlib.md5(self.email.lower().encode("utf-8")).hexdigest()  # noqa
