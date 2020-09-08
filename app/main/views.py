@@ -15,10 +15,10 @@ from flask_login import current_user, login_required
 from werkzeug import Response
 
 from . import main
-from .forms import EditProfileAdminForm, EditProfileForm, PostForm
+from .forms import CommentForm, EditProfileAdminForm, EditProfileForm, PostForm
 from .. import db
 from ..decorators import admin_required, permission_required
-from ..models import Permission, Post, Role, User
+from ..models import Comment, Permission, Post, Role, User
 
 
 @main.route("/", methods=["GET", "POST"])
@@ -157,11 +157,38 @@ def edit_profile_admin(id: int) -> Any:
     return render_template("edit_profile.html", form=form, user=user)
 
 
-@main.route("/post/<int:id>")
+@main.route("/post/<int:id>", methods=["GET", "POST"])
 def post(id: int):
     post = Post.query.get_or_404(id)
+    form = CommentForm()
+
+    if form.validate_on_submit():
+        comment = Comment(
+            body=form.body.data, post=post, author=current_user._get_current_object()
+        )
+        db.session.add(comment)
+        db.session.commit()
+
+        flash("Your comment has been published.")
+        return redirect(url_for(".post", id=post.id, page=-1))
+
+    page = request.args.get("page", 1, type=int)
+
+    if page == -1:
+        page = (post.comments.count() - 1) // current_app.config[
+            "FLASKY_COMMENTS_PER_PAGE"
+        ] + 1
+
+    pagination = post.comments.order_by(Comment.timestamp.asc()).paginate(
+        page, per_page=current_app.config["FLASKY_COMMENTS_PER_PAGE"], error_out=False
+    )
+
+    comments = pagination.items
+
     # use a list as the parameter below to enable _posts.html
-    return render_template("post.html", posts=[post])
+    return render_template(
+        "post.html", posts=[post], form=form, comments=comments, pagination=pagination
+    )
 
 
 @main.route("/edit/<int:id>", methods=["GET", "POST"])
@@ -258,7 +285,9 @@ def followed_by(username):
         return redirect(url_for(".index"))
     page = request.args.get("page", 1, type=int)
     pagination = user.followed.paginate(
-        page, per_page=current_app.config["FLASKY_FOLLOWERS_PER_PAGE"], error_out=False
+        page,
+        per_page=current_app.config["FLASKY_FOLLOWERS_PER_PAGE"],
+        error_out=False,  # noqa
     )
     follows = [
         {"user": item.followed, "timestamp": item.timestamp}
