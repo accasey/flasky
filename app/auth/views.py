@@ -4,7 +4,6 @@ from typing import Any
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_wtf.form import FlaskForm
-from werkzeug.wrappers import Response
 
 from . import auth
 from .forms import (
@@ -21,7 +20,7 @@ from ..models import User
 
 
 @auth.before_app_request
-def before_request() -> Response:
+def before_request() -> Any:
     if current_user.is_authenticated:
         current_user.ping()
         if (
@@ -64,7 +63,7 @@ def login() -> Any:
 
 @auth.route("/logout")
 @login_required
-def logout() -> Response:
+def logout() -> Any:
     logout_user()
     flash("You have been logged out.")
     return redirect(url_for("main.index"))
@@ -100,7 +99,7 @@ def register() -> Any:
 
 @auth.route("/confirm/<token>")
 @login_required
-def confirm(token: str) -> Response:
+def confirm(token: str) -> Any:
     if current_user.confirmed:
         return redirect(url_for("main.index"))
 
@@ -115,7 +114,7 @@ def confirm(token: str) -> Response:
 
 @auth.route("/confirm")
 @login_required
-def resend_confirmation() -> Response:
+def resend_confirmation() -> Any:
     token = current_user.generate_confirmation_token()
     send_email(
         current_user.email,
@@ -229,7 +228,7 @@ def change_email_request():
 
 @auth.route("/change_email/<token>")
 @login_required
-def change_email(token) -> Response:
+def change_email(token) -> Any:
     if current_user.change_email(token):
         db.session.commit()
         flash("Your email address has been updated.")

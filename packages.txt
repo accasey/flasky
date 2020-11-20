@@ -2,6 +2,7 @@ bleach
 email_validator
 flask
 flask-bootstrap
+flask-httpauth
 flask-login
 flask-pagedown
 flask-mail
