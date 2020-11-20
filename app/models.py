@@ -434,7 +434,7 @@ class Comment(db.Model):
         body = json_comment.get("body")
         if body is None or body == "":
             raise ValidationError("Comment does not have a body")
-        
+
         return Comment(body=body)
 
 
